@@ -1,0 +1,96 @@
+---
+title: "remaniement des données"
+author: "julien_proust"
+date: "10/26/2018"
+output: html_document
+---
+
+#importation
+
+```{r setup }
+SciViews::R
+```
+
+```{r URL localisation write}
+# coral <- read$csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSxqegwJVjO0PxIs7mObr0syeYwNdpvd25AWUoWkwocQexYUqQUK0hC57NwsypQQUDnsJLiR-hxzSFA/pub?output=csv")
+# getwd()
+# write(coral, file = "../data/coral.rds", type = "rds")
+# privilègier le rds comme format
+```
+
+```{r data}
+coral <- read("../data/coral.rds")
+#coral
+```
+
+# mat&met
+
+mesures de croissance de différentes espèces de coraux. La masse est mesurée en t0 puis une seconde fois après 7 jours de suivi.
+- localisation : aquarium dans lequel la bouture est placée. Les installations sont composées de deux unités (A et B)et de plusieurs bacs par unité.
+- species : espèce étudiée
+- id : code de l'individu
+- salinity : salinité mesurée en t7
+- temperature : température mesurée en t7
+- date : date de la mesure en t7
+- time : nombre de jour entre la mesure initiale et finale
+- gain : gain de masse en g entre le jour t0 et t7
+- gain_std : gain/masse initiale
+
+# Remaniement des données
+
+```{r factor}
+#Transformez la variable localisation et la variable species en variable facteur.
+
+coral$localisation <- as.factor(coral$localisation)
+coral$species <- as.factor(coral$species)
+#coral
+#summary(coral)
+```
+
+```{r select}
+#Retirez la variable salinity, temperature et date
+coral_select <- select(coral, localisation, species, id, time, gain_std, gain)
+#rmarkdown::paged_table(coral)
+```
+
+```{r filter}
+#Filtrez les valeurs négatives dans la variable gain
+coral_filter <- filter(coral_select, gain > 0) # hauteur supérieur à 20 
+#rmarkdown::paged_table(coral_filter)
+```
+
+```{r mutate}
+#Divisez le gain de masse par le nombre de jour d'expérience
+coral_mutate <- mutate(coral_filter, gain = gain/time)
+#rmarkdown::paged_table(coral_mutate)
+```
+
+```{r mutate2}
+#Divisez le gain de masse standardisé par le nombre de jour d'expérience et multipliez cette nouvelle variable par 100 pour obtenir la croissance en pourcent par jour.
+coral_mutate2 <- mutate(coral_mutate, gain_std = (gain_std/time)*100)
+#rmarkdown::paged_table(coral_mutate2)
+#skimr::skim(coral)
+```
+
+```{r group by summarise}
+#Réalisez plusieurs tableaux de données résumant les données par aquarium et par espèce. Ce tableau doit contenir le nombre d'observation, la valeur minimale, la valeur maximale, la valeur médiane et la moyenne.
+#A0B0A2B2
+#s.pistillata
+#s.hystrix
+
+coral_sub <- group_by(coral_mutate2, localisation, species)
+head(coral_sub)
+coral_sum <- summarise(coral_sub, "nombre" = n(),
+                           "moyenne" = mean(gain), 
+                           "minimum" = min(gain), 
+                           "médiane" = median(gain), 
+                           "maximum" = max(gain))
+knitr::kable(coral_sum, digits = 2, caption = "Null")
+
+coral_sum2 <- summarise(coral_sub, "nombre" = n(),
+                           "moyenne" = mean(gain_std), 
+                           "minimum" = min(gain_std), 
+                           "médiane" = median(gain_std), 
+                           "maximum" = max(gain_std))
+knitr::kable(coral_sum2)
+```
